@@ -32,6 +32,19 @@ async def bet_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.callback_query.edit_message_text(text="Here are you bets",reply_markup=reply_markup) 
 
+async def pnl_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [
+            InlineKeyboardButton("View Profit", callback_data="3"), 
+            InlineKeyboardButton("View Loss", callback_data="4")
+        ],
+        [
+            InlineKeyboardButton("View Pushes", callback_data="5")
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.callback_query.edit_message_text(text="Here is your P&L page",reply_markup=reply_markup) 
+    
 # testing functions
 def hello():
     return "hello world"
@@ -41,14 +54,14 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     
     if query.data == "1":
-        await query.answer("bet")
+        await query.answer("Place Bets view entered")
         await bet_command(update, context)
         # choose team
         # enter amount
         # record data into spreadsheet
     
     if query.data == "2":
-        await query.answer("pnl")
+        await query.answer("Profit & Loss view entered")
         await bet_command(update, context)
         # query spreadsheet for profit, loss, and push records of user given his/her ID
         
@@ -72,12 +85,13 @@ def handle_response(text: str) -> str:
     
     return 'I do not understand what you wrote...'
 
+# update.message.chat.id - get user id
 # Handle Message
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_type: str = update.message.chat.type
     text: str = update.message.text 
     
-    print(f'User ({update.message.chat.id}) in {message_type}: "{text}"')
+    print(f'User [{update.message.from_user.last_name}, {update.message.from_user.first_name}] in [{message_type} message]: "{text}"')
     
     if message_type == 'group':
         if BOT_USERNAME in text:
@@ -100,21 +114,23 @@ async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
 # Main Function
 if __name__ == '__main__':
+    
+    # Initiate Bot Start
     print('Starting bot...')
     
     app = Application.builder().token(TOKEN).build()
     
-    # Commands
+    # Bot Command Handler
     app.add_handler(CommandHandler('start', start_command))
     app.add_handler(CommandHandler('help', help_command))
     
-    # Buttons
+    # Bot Control Flow
     app.add_handler(CallbackQueryHandler(button))
     
-    # Messages
+    # Bot Message Handler
     app.add_handler(MessageHandler(filters.TEXT, handle_message))
     
-    # Errors
+    # Bot Error Handler
     app.add_error_handler(error)
     
     # Polls the bot
