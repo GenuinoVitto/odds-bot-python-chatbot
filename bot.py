@@ -1,7 +1,8 @@
 from typing import Final
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, filters, MessageHandler
-    
+
+# BotFather API token and @
 TOKEN: Final = '6867401223:AAGLE6Amnfo0hWD7ksmJAuya1UXtBDEGMpY'
 BOT_USERNAME: Final = '@odds_v0_bot'
 
@@ -9,27 +10,56 @@ BOT_USERNAME: Final = '@odds_v0_bot'
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [
-            InlineKeyboardButton("Option 1", callback_data="1"),
-            InlineKeyboardButton("Option 2", callback_data="2"),
+            InlineKeyboardButton("Bet 🏀", callback_data="1"),
+        ],
+        [
+            InlineKeyboardButton("View P&L", callback_data="2")
         ]
     ]
-    
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text('Hello! I am OddsBot, how may I help you?', reply_markup=reply_markup)
 
+
+async def bet_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [
+            InlineKeyboardButton("Choose Your Team", callback_data="1"), # scrape teams, O&U, Against the Spread
+        ],
+        [
+            InlineKeyboardButton("Bet Again", callback_data="2")
+        ]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.callback_query.edit_message_text(text="Here are you bets",reply_markup=reply_markup) 
+
+# testing functions
+def hello():
+    return "hello world"
+
+# Control Flow 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     
-    await query.answer("you clicked a button")
-    await query.edit_message_text(text=f"Selected option: {query.data}")
+    if query.data == "1":
+        await query.answer("bet")
+        await bet_command(update, context)
+        # choose team
+        # enter amount
+        # record data into spreadsheet
+    
+    if query.data == "2":
+        await query.answer("pnl")
+        await bet_command(update, context)
+        # query spreadsheet for profit, loss, and push records of user given his/her ID
+        
+    await query.answer()
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('Help')
-
-async def custom_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('Test')
     
-# Responses    
+        # place how to use bot here
+    
+# Bot Text Responses    
 def handle_response(text: str) -> str:
     processed: str = text.lower()
     
@@ -42,6 +72,7 @@ def handle_response(text: str) -> str:
     
     return 'I do not understand what you wrote...'
 
+# Handle Message
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_type: str = update.message.chat.type
     text: str = update.message.text 
@@ -63,9 +94,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await update.message.reply_text(response)
     
+# Handle Error
 async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(f'Update {update} caused error {context.error}')
     
+# Main Function
 if __name__ == '__main__':
     print('Starting bot...')
     
@@ -74,8 +107,8 @@ if __name__ == '__main__':
     # Commands
     app.add_handler(CommandHandler('start', start_command))
     app.add_handler(CommandHandler('help', help_command))
-    app.add_handler(CommandHandler('custom', custom_command))
     
+    # Buttons
     app.add_handler(CallbackQueryHandler(button))
     
     # Messages
