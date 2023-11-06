@@ -1,3 +1,4 @@
+# Import Statements
 from typing import Final
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, filters, MessageHandler
@@ -13,7 +14,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("Bet 🏀", callback_data="1"),
         ],
         [
-            InlineKeyboardButton("View P&L", callback_data="2")
+            InlineKeyboardButton("View P&L 💰", callback_data="2")
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -23,10 +24,10 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def bet_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [
-            InlineKeyboardButton("Choose Your Team", callback_data="1"), # scrape teams, O&U, Against the Spread
+            InlineKeyboardButton("Choose Your Team ⛹️", callback_data="3"), # scrape teams, O&U, Against the Spread
         ],
         [
-            InlineKeyboardButton("Bet Again", callback_data="2")
+            InlineKeyboardButton("Bet Again 💸", callback_data="4")
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -35,11 +36,11 @@ async def bet_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def pnl_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [
-            InlineKeyboardButton("View Profit", callback_data="3"), 
-            InlineKeyboardButton("View Loss", callback_data="4")
+            InlineKeyboardButton("View Profit 📈", callback_data="5"), 
+            InlineKeyboardButton("View Loss 📉", callback_data="6")
         ],
         [
-            InlineKeyboardButton("View Pushes", callback_data="5")
+            InlineKeyboardButton("View Pushes 🫸", callback_data="7")
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -62,9 +63,34 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if query.data == "2":
         await query.answer("Profit & Loss view entered")
-        await bet_command(update, context)
+        await pnl_command(update, context)
         # query spreadsheet for profit, loss, and push records of user given his/her ID
+    
+    if query.data == "3":
+        await query.answer("test")
+        await query.edit_message_text("test")
+        # choose team
+    
+    if query.data == "4":
+        await query.answer("test")
+        await query.edit_message_text("test")
+        # bet again
         
+    if query.data == "5":
+        await query.answer("test")
+        await query.edit_message_text("test")
+        # view profit
+        
+    if query.data == "6":
+        await query.answer("test")
+        await query.edit_message_text("test")
+        # view loss
+        
+    if query.data == "7":
+        await query.answer("test")
+        await query.edit_message_text("test")
+        # view pushes
+           
     await query.answer()
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -118,6 +144,7 @@ if __name__ == '__main__':
     # Initiate Bot Start
     print('Starting bot...')
     
+    # Bot Builder
     app = Application.builder().token(TOKEN).build()
     
     # Bot Command Handler
