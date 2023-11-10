@@ -4,11 +4,15 @@
 #-----------------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------------
-# Import
+# Imports / Packages / Libraries
+#   
+#  - python-telegram-bot package [https://docs.python-telegram-bot.org/en]
 #-----------------------------------------------------------------------------------------------------------------------------
 from typing import Final
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, filters, MessageHandler
+
+# from teams_scraper import scrape_T
 
 #-----------------------------------------------------------------------------------------------------------------------------
 # BotFather API token and Username
@@ -20,14 +24,82 @@ BOT_USERNAME: Final = '@odds_v0_bot'
 # Commands
 #-----------------------------------------------------------------------------------------------------------------------------
 
+
+# This web scraper takes NBA match data from thescore.com
+# data is as follows:
+# - home/away team
+# - over and under
+# - against the spread
+# - match time
+
+# import statements
+from selenium import webdriver
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service as ChromeService
+from webdriver_manager.chrome import ChromeDriverManager
+import datetime
+from datetime import date, timedelta
+
+
+# from tabulate import tabulate
+# This Python Script is a Web Scraper that makes use of the BeautifulSoup library
+# to display various information about fake news articles from "akoy-pilipino.blogspot.com".
+def Scrape():
+    options = webdriver.ChromeOptions()
+    options.headless = True
+
+    # URL of the website you want to scrape
+    # path = 'https://www.cbssports.com/nba/expert-picks/20231103/'
+    driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
+    next = date.today() + timedelta(1)
+    print(next)
+    path = f'https://www.thescore.com/nba/events/date/{next}'
+
+    driver.get(path)
+    # print(driver.page_source)
+    timeout = 5
+    try:
+        element_present = EC.presence_of_element_located((By.ID, 'main'))
+        WebDriverWait(driver, timeout).until(element_present)
+    except TimeoutException:
+        print("Timed out waiting for page to load")
+    finally:
+        print("Page loaded")
+
+    teams = driver.find_elements(By.CLASS_NAME, 'EventCard__teamName--JweK5')
+    ats = driver.find_elements(By.CLASS_NAME, 'EventCard__scoreColumn--2JZbq')
+
+    teamList = []
+    scoreList = []
+
+    for team in teams:
+        heading = team.find_element(By.TAG_NAME, 'div').text
+        teamList.append(heading)
+        print(heading)
+
+    for x in ats:
+        num = x.find_element(By.TAG_NAME, 'div').text
+        scoreList.append(num)
+        print(num)
+
+    return teamList,scoreList
+
+# Store data
+# - teams -> team name ACRONYMS
+# - score -> against the spread, over & under
+teams, score = Scrape()
+
 # Start command
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [
-            InlineKeyboardButton("Bet 🏀", callback_data="1"),
+            InlineKeyboardButton("Picks 🏀", callback_data="1"),
         ],
         [
-            InlineKeyboardButton("View P&L 💰", callback_data="2")
+            InlineKeyboardButton("View Weekly P&L 💰", callback_data="2")
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -40,22 +112,22 @@ async def bet_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("Choose Your Team ⛹️", callback_data="3"), # scrape teams, O&U, Against the Spread
         ],
         [
-            InlineKeyboardButton("Bet Again 💸", callback_data="4")
+            InlineKeyboardButton("Pick Again 💸", callback_data="4")
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.callback_query.edit_message_text(text="Here are you bets",reply_markup=reply_markup) 
+    
+    out = ""
+    for i in range(0, len(teams), 2):
+        out += f'{teams[i][0:3]}@{teams[i + 1][0:3]} {score[i]}, {score[i + 1]}\n'
+    await update.callback_query.edit_message_text(out,reply_markup=reply_markup) 
 
 # Profit and Loss command
 async def pnl_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [
-            InlineKeyboardButton("View Profit 📈", callback_data="5"), 
-            InlineKeyboardButton("View Loss 📉", callback_data="6")
+            InlineKeyboardButton("View P&L 📈", callback_data="5"), 
         ],
-        [
-            InlineKeyboardButton("View Pushes 🫸", callback_data="7")
-        ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.callback_query.edit_message_text(text="Here is your P&L page",reply_markup=reply_markup) 
@@ -81,6 +153,9 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data == "1":
         await query.answer("Place Bets view entered")
         await bet_command(update, context)
+        
+        # place format for bets
+        
         # choose team
         # enter amount
         # record data into spreadsheet
@@ -101,19 +176,9 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # bet again
         
     if query.data == "5":
-        await query.answer("Profit view entered")
+        await query.answer("P&L view entered")
         await query.edit_message_text("test")
         # view profit
-        
-    if query.data == "6":
-        await query.answer("Loss view entered")
-        await query.edit_message_text("test")
-        # view loss
-        
-    if query.data == "7":
-        await query.answer("Pushes view entered")
-        await query.edit_message_text("test")
-        # view pushes
            
     await query.answer()
 
@@ -123,12 +188,18 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def handle_response(text: str) -> str:
     processed: str = text.lower()
     
+    # bet handler
+    # bet confirm
+    # show button done betting
+    
     if 'hello' in processed:
         return 'Hey there!'
     if 'how are you' in processed:
         return 'I am good!'
     if 'i love odds' in processed:
         return 'I love odds too!'
+    
+    # if format wrong -> bet again
     
     return 'I do not understand what you wrote...'
 
@@ -153,7 +224,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         response: str = handle_response(text)
     
     # ---------------------
-    # for debugging
+    #     for debugging
     print('Bot:', response)
     # ---------------------
     
