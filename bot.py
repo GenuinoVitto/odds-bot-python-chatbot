@@ -43,23 +43,28 @@ from webdriver_manager.chrome import ChromeDriverManager
 import datetime
 from datetime import date, timedelta
 
+next = date.today() + timedelta(1)
 
-# from tabulate import tabulate
-# This Python Script is a Web Scraper that makes use of the BeautifulSoup library
-# to display various information about fake news articles from "akoy-pilipino.blogspot.com".
+# This is a list of all NBA 3 letter abreviations 
+enum = ['atl, bos, bkn, cha, chi, cle, dal, den, det, gsw, hou, ind, lac, lal, mem, mia, mil, min, nop, nyk, okc, orl, phi, phx, por, sac, sas, tor, uta, was ']
+
+# This function scrapes necessary info from thescore.com for user [bet] picks
 def Scrape():
     options = webdriver.ChromeOptions()
     options.headless = True
 
     # URL of the website you want to scrape
-    # path = 'https://www.cbssports.com/nba/expert-picks/20231103/'
     driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
-    next = date.today() + timedelta(1)
-    print(next)
+    
+    # ---------------------
+    #     for debugging
+    print('Next day:', next)
+    # ---------------------
+    
     path = f'https://www.thescore.com/nba/events/date/{next}'
-
     driver.get(path)
-    # print(driver.page_source)
+
+    # timeout function for Selenium
     timeout = 5
     try:
         element_present = EC.presence_of_element_located((By.ID, 'main'))
@@ -69,9 +74,11 @@ def Scrape():
     finally:
         print("Page loaded")
 
+    # Selenium query elements from thescore.com
     teams = driver.find_elements(By.CLASS_NAME, 'EventCard__teamName--JweK5')
     ats = driver.find_elements(By.CLASS_NAME, 'EventCard__scoreColumn--2JZbq')
 
+    # instantiate lists
     teamList = []
     scoreList = []
 
@@ -85,12 +92,16 @@ def Scrape():
         scoreList.append(num)
         print(num)
 
+    # return lists
     return teamList,scoreList
 
 # Store data
 # - teams -> team name ACRONYMS
 # - score -> against the spread, over & under
 teams, score = Scrape()
+
+# Code function refactoring teams into proper 3 letter acronyms 
+# <----- place code here ----->
 
 # Start command
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -107,35 +118,24 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Bet command
 async def bet_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [
-            InlineKeyboardButton("Choose Your Team ⛹️", callback_data="3"), # scrape teams, O&U, Against the Spread
-        ],
-        [
-            InlineKeyboardButton("Pick Again 💸", callback_data="4")
-        ]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    out = ""
+    out = f'NBA [{next}]\n\n'
     for i in range(0, len(teams), 2):
-        out += f'{teams[i][0:3]}@{teams[i + 1][0:3]} {score[i]}, {score[i + 1]}\n'
-    await update.callback_query.edit_message_text(out,reply_markup=reply_markup) 
+        out += f'{teams[i][0:3]}@{teams[i + 1][0:3]} {score[i]}, {score[i + 1]}\n' 
+    out = out + 'Close 11:30\n\nFormat:\n[NBA team acronym] [amount in pesos]\n\nExample: tor 5000\n\n'
+    await update.callback_query.edit_message_text(out) 
 
 # Profit and Loss command
 async def pnl_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [
-            InlineKeyboardButton("View P&L 📈", callback_data="5"), 
-        ],
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.callback_query.edit_message_text(text="Here is your P&L page",reply_markup=reply_markup) 
+    await update.callback_query.edit_message_text(text="Here is your P&L page") 
     
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('Help')
     
-        # place how to use bot here
+    # Button help
+    await update.message.reply_text('Buttons\nPicks 🏀 | Allows the user to view NBA matches for the following day/nView Weekly P&L 💰 | Allows the user to view\n\t->Profits for the week\n\t->Losses for the week\n\t->Bet Pick information for the week') 
+    
+    # Fun help
+    # await update.message.reply_text('Just for fun! Try chatting "hello" or "I love odds!" to the bot and')
+    # place how to use bot here
         
 #-----------------------------------------------------------------------------------------------------------------------------
 # Python Testing Functions
@@ -154,8 +154,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("Place Bets view entered")
         await bet_command(update, context)
         
-        # place format for bets
-        
         # choose team
         # enter amount
         # record data into spreadsheet
@@ -164,21 +162,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("Profit & Loss view entered")
         await pnl_command(update, context)
         # query spreadsheet for profit, loss, and push records of user given his/her ID
-    
-    if query.data == "3":
-        await query.answer("Choose Your Team view entered")
-        await query.edit_message_text("test")
-        # choose team
-    
-    if query.data == "4":
-        await query.answer("Bet Again entered")
-        await query.edit_message_text("test")
-        # bet again
-        
-    if query.data == "5":
-        await query.answer("P&L view entered")
-        await query.edit_message_text("test")
-        # view profit
            
     await query.answer()
 
@@ -188,10 +171,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def handle_response(text: str) -> str:
     processed: str = text.lower()
     
-    # bet handler
-    # bet confirm
-    # show button done betting
-    
+    # conversational texts
     if 'hello' in processed:
         return 'Hey there!'
     if 'how are you' in processed:
@@ -199,8 +179,22 @@ def handle_response(text: str) -> str:
     if 'i love odds' in processed:
         return 'I love odds too!'
     
+    # functional texts
+    if enum in processed: # processing picks from text 
+        # split enum from amount
+        # function to write bet to spreadsheet
+        return f'{enum}'
+    
+    # bet handler
+    
+    # while
+    
+    # bet confirm
+    return 'Do you wanna bet again?'
+    # show button done betting
     # if format wrong -> bet again
     
+    # return if text is not recognized by oddsBot
     return 'I do not understand what you wrote...'
 
 # update.message.chat.id - get user id
