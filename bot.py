@@ -8,31 +8,13 @@
 #   
 #  - python-telegram-bot package [https://docs.python-telegram-bot.org/en]
 #-----------------------------------------------------------------------------------------------------------------------------
+
+# telegram bot library
 from typing import Final
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, filters, MessageHandler
 
-# from teams_scraper import scrape_T
-
-#-----------------------------------------------------------------------------------------------------------------------------
-# BotFather API token and Username
-#-----------------------------------------------------------------------------------------------------------------------------
-TOKEN: Final = '6867401223:AAGLE6Amnfo0hWD7ksmJAuya1UXtBDEGMpY'
-BOT_USERNAME: Final = '@odds_v0_bot'
-
-#-----------------------------------------------------------------------------------------------------------------------------
-# Commands
-#-----------------------------------------------------------------------------------------------------------------------------
-
-
-# This web scraper takes NBA match data from thescore.com
-# data is as follows:
-# - home/away team
-# - over and under
-# - against the spread
-# - match time
-
-# import statements
+# web scraper Selenium
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support.ui import WebDriverWait
@@ -43,10 +25,59 @@ from webdriver_manager.chrome import ChromeDriverManager
 import datetime
 from datetime import date, timedelta
 
+# python -> Google Sheets API
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+from google.oauth2 import service_account
+
+# --------------------------------------------- Miscellaneous ----------------------------------------------------------------
+
+# Times
+# time for next day events from thescore.com
 next = date.today() + timedelta(1)
 
-# This is a list of all NBA 3 letter abreviations 
-enum = ['atl, bos, bkn, cha, chi, cle, dal, den, det, gsw, hou, ind, lac, lal, mem, mia, mil, min, nop, nyk, okc, orl, phi, phx, por, sac, sas, tor, uta, was ']
+# This is a dictionary for all NBA 3 letter abreviations that map the format of data scraped from thescore.com to proper format on telegram
+enum = {"ATL Hawks":"ATL", "BOS Celtics":"BOS", "BKN Nets":"BKN", "CHA Hornets":"CHA", "CHI Bulls":"CHI", "CLE Cavaliers":"CLE", 
+        "DAL Mavericks":"DAL", "DEN Nuggets":"DEN", "DET Pistons":"DET", "GS Warriors":"GSW", "HOU Rockets":"HOU", "IND Pacers":"IND", 
+        "LA Clippers":"LAC", "LA Lakers":"LAL", "MEM Grizzlies":"MEM", "MIA Heat":"MIA", "MIL Bucks":"MIL", "MIN Timberwolves":"MIN", 
+        "NO Pelicans":"NOP", "NY Knicks":"NYK", "OKC Thunder":"OKC", "ORL Magic":"ORL", "PHI 76ers":"PHI", "PHX Suns":"PHX", 
+        "POR Trail Blazers":"POR", "SAC Kings":"SAC", "SA Spurs":"SAS", "TOR Raptors":"TOR", "UTA Jazz":"UTA", "WSH Wizards":"WAS" }
+# --------------------------------------------- Miscellaneous ----------------------------------------------------------------
+
+
+#-----------------------------------------------------------------------------------------------------------------------------
+# BotFather API token and Username
+#-----------------------------------------------------------------------------------------------------------------------------
+TOKEN: Final = '6867401223:AAGLE6Amnfo0hWD7ksmJAuya1UXtBDEGMpY'
+BOT_USERNAME: Final = '@odds_v0_bot'
+
+#-----------------------------------------------------------------------------------------------------------------------------
+# Google Sheets API keys and build scripts
+#-----------------------------------------------------------------------------------------------------------------------------
+SERVICE_ACCOUNT_FILE = 'keys.json'
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+creds = None
+creds = service_account.Credentials.from_service_account_file(
+        SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+SAMPLE_SPREADSHEET_ID = "1Wjqi4EgCNsfRYslKPcKvz6FgOJI8_WyaR2VcDIvqKw8"
+service = build("sheets", "v4", credentials=creds)
+sheet = service.spreadsheets()
+
+#-----------------------------------------------------------------------------------------------------------------------------
+# Python Testing Functions
+#-----------------------------------------------------------------------------------------------------------------------------
+def hello():
+    return "hello world"
+
+#-----------------------------------------------------------------------------------------------------------------------------
+# Bot Commands
+#-----------------------------------------------------------------------------------------------------------------------------
+# This web scraper takes NBA match data from thescore.com
+# data is as follows:
+# - home/away team
+# - over and under
+# - against the spread
+# - match time
 
 # This function scrapes necessary info from thescore.com for user [bet] picks
 def Scrape():
@@ -100,6 +131,23 @@ def Scrape():
 # - score -> against the spread, over & under
 teams, score = Scrape()
 
+# format teams into proper abbreviations
+teams_formatted = [enum[item] if item in enum else item for item in teams]
+
+# extract over&under, against the spread
+total = []
+against = []
+matchup = []
+
+for i in range(0,len(score), 1):
+    if "T:" in score[i]:
+        total.append(score[i])
+    else:
+        against.append(score[i])
+
+for i in range(0, len(teams), 2):
+    matchup.append(teams_formatted[i] + "@" + teams_formatted[i+1])
+        
 # Code function refactoring teams into proper 3 letter acronyms 
 # <----- place code here ----->
 
@@ -119,9 +167,9 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Bet command
 async def bet_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     out = f'NBA [{next}]\n\n'
-    for i in range(0, len(teams), 2):
-        out += f'{teams[i][0:3]}@{teams[i + 1][0:3]} {score[i]}, {score[i + 1]}\n' 
-    out = out + 'Close 11:30\n\nFormat:\n[NBA team acronym] [amount in pesos]\n\nExample: tor 5000\n\n'
+    for i in range(0, len(matchup), 1):
+        out += f'{matchup[i]} {against[i]} {total[i]}\n' 
+    out = out + 'Close 11:30\n\nFormat:\n[NBA team acronym] [amount in pesos]\n\nExample: tor 5000\n\n' 
     await update.callback_query.edit_message_text(out) 
 
 # Profit and Loss command
@@ -136,13 +184,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Fun help
     # await update.message.reply_text('Just for fun! Try chatting "hello" or "I love odds!" to the bot and')
     # place how to use bot here
-        
-#-----------------------------------------------------------------------------------------------------------------------------
-# Python Testing Functions
-#-----------------------------------------------------------------------------------------------------------------------------
-def hello():
-    return "hello world"
-
 
 #-----------------------------------------------------------------------------------------------------------------------------
 # Control Flow
